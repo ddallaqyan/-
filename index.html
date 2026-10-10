@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ВЫЖИВШИЙ — 3 ночи</title>
+<style>
+  :root{
+    --bone:#e7e2d2;
+    --blood:#9a2323;
+    --blood-bright:#d43a3a;
+    --lantern:#d8c887;
+    --void:#050403;
+    --panel:#0d0b09;
+    --panel-border:#2a221a;
+  }
+  html,body{margin:0;padding:0;background:#000;overflow:hidden;height:100%;width:100%;
+    overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+  body{position:fixed;inset:0;}
+  body{font-family:Georgia,'Times New Roman',serif;color:var(--bone);}
+  #game{display:block;background:#000;cursor:crosshair;touch-action:none;}
+
+  .overlay{
+    position:fixed;inset:0;display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;
+    padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));
+    background:radial-gradient(ellipse at center, rgba(10,8,6,0.92) 0%, rgba(2,1,1,0.98) 100%);
+    z-index:50;
+  }
+  .hidden{display:none !important;}
+  .panel{
+    max-width:560px;width:100%;box-sizing:border-box;margin:auto;padding:36px 40px;border:1px solid var(--panel-border);
+    background:linear-gradient(180deg, rgba(20,15,11,0.9), rgba(8,6,4,0.95));
+    box-shadow:0 0 60px rgba(0,0,0,0.8), inset 0 0 40px rgba(0,0,0,0.5);
+    text-align:center;
+  }
+  .panel h1{
+    font-size:2.4em;letter-spacing:4px;margin:0 0 6px 0;color:var(--blood-bright);
+    text-shadow:0 0 18px rgba(212,58,58,0.5);font-weight:normal;
+  }
+  .panel h2{font-size:1.3em;color:var(--lantern);margin:0 0 20px 0;font-weight:normal;font-style:italic;}
+  .panel p{line-height:1.6;font-size:0.98em;color:#c9c3b3;text-align:left;margin:10px 0;}
+  .panel ul{text-align:left;line-height:1.9;color:#c9c3b3;font-size:0.95em;padding-left:20px;}
+  .panel .tag{color:var(--lantern);}
+  .btn{
+    margin-top:18px;padding:13px 34px;min-height:46px;font-size:1.05em;letter-spacing:2px;touch-action:manipulation;
+    background:var(--blood);color:var(--bone);border:1px solid #c94b4b;cursor:pointer;
+    font-family:Georgia,serif;transition:background .15s, box-shadow .15s;
+  }
+  .btn:hover{background:var(--blood-bright);box-shadow:0 0 20px rgba(212,58,58,0.5);}
+
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Courier New',monospace;}
+  #stats{position:absolute;top:calc(12px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));width:min(230px,42vw);}
+  .stat{margin-bottom:8px;}
+  .stat .label{font-size:0.72em;letter-spacing:1px;color:#a89f8c;display:flex;justify-content:space-between;margin-bottom:2px;}
+  .barBg{height:12px;background:rgba(0,0,0,0.55);border:1px solid var(--panel-border);position:relative;}
+  .barFill{height:100%;transition:width .2s linear;}
+  .fillHealth{background:linear-gradient(90deg,#5c1010,var(--blood-bright));}
+  .fillHunger{background:linear-gradient(90deg,#5a3a10,#c98a2e);}
+  .fillBattery{background:linear-gradient(90deg,#5a5216,var(--lantern));}
+
+  #dayLabel{
+    position:absolute;top:calc(12px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));text-align:right;font-family:Georgia,serif;
+  }
+  #dayLabel .big{font-size:1.4em;color:var(--lantern);letter-spacing:2px;text-shadow:0 0 10px rgba(0,0,0,0.8);}
+  #phaseBarBg{width:180px;height:6px;background:rgba(0,0,0,0.5);border:1px solid var(--panel-border);margin-top:6px;margin-left:auto;}
+  #phaseBarFill{height:100%;background:var(--lantern);width:0%;}
+
+  #logbox{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom));left:calc(16px + env(safe-area-inset-left));width:min(420px,60vw);display:flex;flex-direction:column-reverse;gap:4px;}
+  .logline{
+    font-family:Georgia,serif;font-style:italic;font-size:0.92em;color:#d8d2c0;
+    background:rgba(0,0,0,0.35);padding:4px 10px;border-left:2px solid var(--blood);
+    opacity:1;transition:opacity 1.4s ease;
+  }
+  .logline.fade{opacity:0;}
+
+  #controls{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom));right:calc(16px + env(safe-area-inset-right));font-size:0.75em;color:#8a8272;text-align:right;line-height:1.6;}
+  #controls b{color:var(--lantern);}
+
+  #flashIcon{position:absolute;bottom:100px;right:16px;font-size:0.8em;color:#8a8272;text-align:right;}
+
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:9;
+    box-shadow:inset 0 0 160px 40px rgba(0,0,0,0.55);}
+  body.critical #vignette{
+    box-shadow:inset 0 0 220px 60px rgba(120,10,10,0.55);
+    animation:pulse 1s infinite;
+  }
+  @keyframes pulse{0%{opacity:0.6;}50%{opacity:1;}100%{opacity:0.6;}}
+
+  /* ===== Сенсорное управление ===== */
+  .touch-only{display:none;}
+  body.touch .kb-only{display:none;}
+  body.touch .touch-only{display:block;}
+  body.touch li.touch-only{display:list-item;}
+  body.touch #controls{display:none;}
+  body.touch #game{cursor:default;}
+  body.touch #logbox{bottom:auto;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(340px,36vw);}
+
+  #touchUI{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;touch-action:none;}
+  body.touch #touchUI{display:block;}
+  .zone{position:absolute;top:0;bottom:0;pointer-events:auto;touch-action:none;}
+  #zoneMove{left:0;width:45%;}
+  #zoneAim{right:0;width:55%;}
+  .stick{
+    position:absolute;width:96px;height:96px;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%);border:2px solid rgba(231,226,210,.4);background:rgba(231,226,210,.07);
+    opacity:.35;transition:opacity .15s;
+  }
+  .stick.active{opacity:.9;}
+  .stick .knob{
+    position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;border-radius:50%;
+    background:rgba(216,200,135,.55);border:1px solid rgba(255,240,180,.6);
+  }
+  #stickMove{left:calc(88px + env(safe-area-inset-left));top:calc(100% - 92px - env(safe-area-inset-bottom));}
+  #stickAim{left:calc(100% - 190px - env(safe-area-inset-right));top:calc(100% - 92px - env(safe-area-inset-bottom));}
+  .tbtn{
+    position:absolute;pointer-events:auto;touch-action:none;width:60px;height:60px;border-radius:50%;padding:0;
+    border:2px solid rgba(231,226,210,.5);background:rgba(13,11,9,.6);color:var(--bone);
+    font:11px Georgia,serif;letter-spacing:1px;-webkit-appearance:none;appearance:none;outline:none;
+  }
+  .tbtn.big{width:78px;height:78px;background:rgba(154,35,35,.65);border-color:#c94b4b;font-size:13px;}
+  .tbtn.on{background:rgba(216,200,135,.45);border-color:var(--lantern);color:#fff;}
+  .tbtn.pressed{transform:scale(.92);}
+  #btnAtk{right:calc(22px + env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));}
+  #btnFlash{right:calc(30px + env(safe-area-inset-right));bottom:calc(112px + env(safe-area-inset-bottom));}
+
+  .panel p.rotate-hint{display:none;color:var(--lantern);font-size:.85em;text-align:center;margin:6px 0 0;}
+
+  /* ===== Адаптивность ===== */
+  @media (max-width:430px){
+    #stickAim{left:calc(100% - 168px - env(safe-area-inset-right));}
+    .panel{padding:24px 20px;}
+    .panel h1{font-size:1.9em;letter-spacing:3px;}
+  }
+  @media (max-height:500px){
+    .panel{padding:14px 22px;}
+    .panel h1{font-size:1.6em;letter-spacing:3px;}
+    .panel h2{font-size:1em;margin-bottom:8px;}
+    .panel p{font-size:.88em;line-height:1.4;margin:6px 0;}
+    .panel ul{line-height:1.45;font-size:.88em;margin:6px 0;}
+    .btn{margin-top:8px;padding:10px 26px;}
+    #stats{width:min(190px,34vw);}
+    .stat{margin-bottom:4px;}
+    .stat .label{font-size:.62em;}
+    .barBg{height:9px;}
+    #dayLabel .big{font-size:1.05em;}
+    #phaseBarBg{width:120px;height:5px;}
+    .logline{font-size:.8em;padding:3px 8px;}
+    .stick{width:84px;height:84px;}
+    #stickMove{top:calc(100% - 70px - env(safe-area-inset-bottom));left:calc(74px + env(safe-area-inset-left));}
+    #stickAim{top:calc(100% - 70px - env(safe-area-inset-bottom));left:calc(100% - 170px - env(safe-area-inset-right));}
+    .tbtn.big{width:68px;height:68px;}
+    .tbtn{width:54px;height:54px;}
+    #btnAtk{bottom:calc(14px + env(safe-area-inset-bottom));}
+    #btnFlash{bottom:calc(92px + env(safe-area-inset-bottom));}
+  }
+  @media (orientation:portrait){
+    body.touch .panel p.rotate-hint{display:block;}
+    body.touch #logbox{top:calc(112px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));transform:none;width:min(300px,72vw);}
+  }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="vignette"></div>
+
+  <div id="hud" class="hidden">
+    <div id="stats">
+      <div class="stat">
+        <div class="label"><span>ЗДОРОВЬЕ</span><span id="healthNum">100</span></div>
+        <div class="barBg"><div id="healthBar" class="barFill fillHealth" style="width:100%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="label"><span>ГОЛОД</span><span id="hungerNum">100</span></div>
+        <div class="barBg"><div id="hungerBar" class="barFill fillHunger" style="width:100%"></div></div>
+      </div>
+      <div class="stat">
+        <div class="label"><span>ФОНАРИК</span><span id="batteryNum">100</span></div>
+        <div class="barBg"><div id="batteryBar" class="barFill fillBattery" style="width:100%"></div></div>
+      </div>
+    </div>
+    <div id="dayLabel">
+      <div class="big" id="dayText">День 1</div>
+      <div id="phaseBarBg"><div id="phaseBarFill"></div></div>
+    </div>
+    <div id="logbox"></div>
+    <div id="controls">
+      <b>WASD</b> движение &nbsp; <b>Мышь</b> взгляд/фонарик<br>
+      <b>F</b> фонарик вкл/выкл &nbsp; <b>ЛКМ / Пробел</b> удар топором
+    </div>
+  </div>
+
+  <div id="touchUI" class="hidden">
+    <div id="zoneMove" class="zone"></div>
+    <div id="zoneAim" class="zone"></div>
+    <div id="stickMove" class="stick"><div class="knob"></div></div>
+    <div id="stickAim" class="stick"><div class="knob"></div></div>
+    <button id="btnFlash" class="tbtn" type="button">СВЕТ</button>
+    <button id="btnAtk" class="tbtn big" type="button">УДАР</button>
+  </div>
+
+  <div id="startOverlay" class="overlay">
+    <div class="panel">
+      <h1>ВЫЖИВШИЙ</h1>
+      <h2>вертолёт разбился в лесу — впереди три ночи</h2>
+      <p>Вы упали с вертолёта посреди леса. Из снаряжения остались только <span class="tag">топор</span> и <span class="tag">фонарик</span>. Нужно продержаться <span class="tag">3 дня и 3 ночи</span>, охотиться на зверей, чтобы не умереть с голоду, и не попасться твари, которая выходит из темноты.</p>
+      <ul>
+        <li class="kb-only"><b>WASD</b> / стрелки — передвижение</li>
+        <li class="kb-only"><b>Мышь</b> — направление взгляда и луча фонарика</li>
+        <li class="kb-only"><b>F</b> — включить/выключить фонарик (садится батарея)</li>
+        <li class="kb-only"><b>ЛКМ</b> или <b>Пробел</b> — ударить топором (звери / тварь)</li>
+        <li class="touch-only"><b>Левый палец</b> — двигаться (держите и ведите по экрану)</li>
+        <li class="touch-only"><b>Правый палец</b> — повернуть луч фонарика (быстрый тап = удар)</li>
+        <li class="touch-only"><b>СВЕТ</b> — включить/выключить фонарик (садится батарея)</li>
+        <li class="touch-only"><b>УДАР</b> — ударить топором (звери / тварь)</li>
+      </ul>
+      <p class="rotate-hint">Для удобства переверните телефон горизонтально ↻</p>
+      <p style="color:#a02020;">Ночью держите фонарик наготове, но помните: свет привлекает тварь издалека.</p>
+      <button class="btn" id="btnStart">НАЧАТЬ</button>
+    </div>
+  </div>
+
+  <div id="endOverlay" class="overlay hidden">
+    <div class="panel">
+      <h1 id="endTitle">...</h1>
+      <p id="endText" style="text-align:center;"></p>
+      <button class="btn" id="btnRestart">ЗАНОВО</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= CONFIG ================= */
+const CFG = {
+  WORLD_W: 3200, WORLD_H: 3200,
+  TREE_COUNT: 230, ANIMAL_COUNT: 16,
+  PLAYER_SPEED: 220, PLAYER_R: 16,
+  OBST_PAD: 4,
+  DAY_DUR: 75, NIGHT_DUR: 65, TRANSITION: 8, TOTAL_DAYS: 3,
+  HUNGER_DRAIN: 100/340,
+  STARVE_DMG: 3.2,
+  REGEN_RATE: 1.6, REGEN_HUNGER_MIN: 35, REGEN_SAFE_TIME: 4,
+  FLASH_DRAIN: 100/55, FLASH_RECHARGE: 100/140,
+  AMBIENT_R: 85, FLASH_RANGE: 520, FLASH_HALF_ANGLE: 0.5,
+  MONSTER_BASE_SPEED: 190, MONSTER_BASE_DETECT: 420, MONSTER_FLASH_BONUS: 260,
+  MONSTER_TOUCH: 28, MONSTER_DMG: 22,
+  ATTACK_RANGE: 62, ATTACK_COOLDOWN: 0.5,
+  ANIMAL_EAT_HUNGER: 34
+};
+
+/* ================= UTIL ================= */
+function rand(a,b){ return a + Math.random()*(b-a); }
+function dist(x1,y1,x2,y2){ return Math.hypot(x2-x1,y2-y1); }
+function clamp(v,a,b){ return Math.min(b,Math.max(a,v)); }
+function normAngle(a){ while(a>Math.PI)a-=Math.PI*2; while(a<-Math.PI)a+=Math.PI*2; return a; }
+function smoothstep(e0,e1,x){ x=clamp((x-e0)/(e1-e0),0,1); return x*x*(3-2*x); }
+
+/* ================= CANVAS ================= */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const fogCanvas = document.createElement('canvas');
+const fogCtx = fogCanvas.getContext('2d');
+/* Логические размеры вида (VW x VH) считаются с учётом масштаба: на маленьких экранах
+   мир немного "отдаляется", чтобы было видно достаточно пространства. */
+let touchMode = false;
+let VW = 0, VH = 0, zoom = 1, dpr = 1;
+const FOG_RES = 0.5; // туман рисуется в половинном разрешении — быстрее на слабых телефонах
+function resize(){
+  const w = window.innerWidth, h = window.innerHeight;
+  dpr = Math.min(window.devicePixelRatio || 1, touchMode ? 1.75 : 2);
+  zoom = clamp(Math.min(w,h) / 640, 0.6, 1);
+  VW = w / zoom; VH = h / zoom;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.max(1, Math.round(w*dpr)); canvas.height = Math.max(1, Math.round(h*dpr));
+  fogCanvas.width = Math.max(1, Math.round(w*dpr*FOG_RES)); fogCanvas.height = Math.max(1, Math.round(h*dpr*FOG_RES));
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', ()=>{ resize(); setTimeout(resize, 250); });
+if(window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+resize();
+
+/* ================= STATE ================= */
+let GAME_STATE = 'menu'; // menu | playing | gameover | victory
+let elapsed = 0, dayIndex = 0, isNight = false, nightFactor = 0, nightsSurvived = 0;
+let deathReason = '';
+let lowHealthWarned = false, lowHungerWarned = false;
+
+const player = {
+  x:0,y:0,angle:0,health:100,hunger:100,battery:100,
+  flashOn:false, atkCd:0, swingT:0, lastDamage:-999, moving:false
+};
+const camera = {x:0,y:0};
+const camEff = {x:0,y:0};
+const shakeState = {t:0, mag:0};
+const shakeOffset = {x:0,y:0};
+const mouse = {x:0,y:0};
+const keys = {};
+
+let trees = [];
+let obstacles = [];
+let animals = [];
+let logMessages = [];
+const heliPos = {x: CFG.WORLD_W/2, y: CFG.WORLD_H/2};
+
+const monster = {
+  x:0,y:0, active:false, state:'wander', speed:CFG.MONSTER_BASE_SPEED,
+  detect:CFG.MONSTER_BASE_DETECT, wanderT:0, dir:0, fleeT:0
+};
+
+/* ================= WORLD GEN ================= */
+function generateTrees(){
+  trees = [];
+  let attempts = 0;
+  while(trees.length < CFG.TREE_COUNT && attempts < CFG.TREE_COUNT*6){
+    attempts++;
+    const x = rand(70, CFG.WORLD_W-70);
+    const y = rand(70, CFG.WORLD_H-70);
+    if(dist(x,y,heliPos.x,heliPos.y) < 260) continue;
+    trees.push({x,y, trunkR: 9+rand(0,4), canR: 26+rand(0,16), tone: Math.random()});
+  }
+  obstacles = trees.concat([{x:heliPos.x, y:heliPos.y, trunkR:78}]);
+}
+
+function generateAnimals(){
+  animals = [];
+  for(let i=0;i<CFG.ANIMAL_COUNT;i++){
+    let x,y;
+    do{ x = rand(60, CFG.WORLD_W-60); y = rand(60, CFG.WORLD_H-60); }
+    while(dist(x,y,heliPos.x,heliPos.y) < 180);
+    animals.push({x,y, alive:true, respawnT:0, wanderT:rand(0,3), dir:rand(0,Math.PI*2)});
+  }
+}
+
+/* ================= COLLISION ================= */
+function pushOutOfCircle(e, cx, cy, minDist){
+  const dx=e.x-cx, dy=e.y-cy;
+  const d = Math.hypot(dx,dy) || 0.001;
+  if(d < minDist){
+    const overlap = minDist - d;
+    e.x += dx/d*overlap; e.y += dy/d*overlap;
+  }
+}
+function applyObstacleCollisions(entity, r){
+  for(const o of obstacles){
+    const minDist = r + o.trunkR + CFG.OBST_PAD;
+    if(dist(entity.x, entity.y, o.x, o.y) < minDist){
+      pushOutOfCircle(entity, o.x, o.y, minDist);
+    }
+  }
+}
+function clampWorld(e, r){
+  e.x = clamp(e.x, r, CFG.WORLD_W-r);
+  e.y = clamp(e.y, r, CFG.WORLD_H-r);
+}
+
+/* ================= LOG ================= */
+const logbox = document.getElementById('logbox');
+function addLog(msg){
+  const div = document.createElement('div');
+  div.className = 'logline';
+  div.textContent = msg;
+  logbox.appendChild(div);
+  while(logbox.children.length > 5){ logbox.removeChild(logbox.firstChild); }
+  setTimeout(()=>{ div.classList.add('fade'); setTimeout(()=>{ if(div.parentNode) div.parentNode.removeChild(div); }, 1500); }, 5000);
+}
+
+/* ================= AUDIO ================= */
+let audioCtx = null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+  }
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, dur, type, vol){
+  if(!audioCtx) return;
+  type = type || 'sine'; vol = vol===undefined ? 0.15 : vol;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const now = audioCtx.currentTime;
+  g.gain.setValueAtTime(vol, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now+dur);
+  o.start(now); o.stop(now+dur+0.02);
+}
+function playNoise(dur, filterType, freq, vol){
+  if(!audioCtx) return;
+  vol = vol===undefined ? 0.2 : vol;
+  const bufferSize = Math.max(1, Math.floor(audioCtx.sampleRate*dur));
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++) data[i] = Math.random()*2-1;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = filterType; filter.frequency.value = freq;
+  const gain = audioCtx.createGain();
+  const now = audioCtx.currentTime;
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now+dur);
+  noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+  noise.start(now); noise.stop(now+dur+0.02);
+}
+function playSwing(){ playTone(220,0.12,'square',0.08); }
+function playClick(){ playTone(700,0.05,'square',0.05); }
+function playEat(){ playTone(520,0.09,'sine',0.1); }
+function playGrowlHit(){ playNoise(0.3,'lowpass',400,0.25); }
+function playAmbientGrowl(){ playNoise(0.9,'lowpass',220,0.22); }
+function playScream(){ playNoise(0.5,'bandpass',900,0.22); }
+
+let heartbeatAcc = 0;
+function updateHeartbeat(dt){
+  if(GAME_STATE !== 'playing') return;
+  const distM = monster.active ? dist(player.x,player.y,monster.x,monster.y) : 9999;
+  const threat = Math.max(
+    player.health < 40 ? (40-player.health)/40 : 0,
+    (monster.active && distM < 500) ? (500-distM)/500 : 0
+  );
+  if(threat <= 0.04) return;
+  const interval = clamp(1.15 - threat*0.85, 0.32, 1.15);
+  heartbeatAcc += dt;
+  if(heartbeatAcc >= interval){
+    heartbeatAcc = 0;
+    playTone(55, 0.12, 'sine', 0.12 + threat*0.18);
+  }
+}
+
+/* ================= INPUT ================= */
+window.addEventListener('keydown', (e)=>{
+  keys[e.code] = true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if(e.code === 'KeyF') toggleFlash();
+  if(e.code === 'Space') tryAttack();
+});
+window.addEventListener('keyup', (e)=>{ keys[e.code] = false; });
+canvas.addEventListener('mousemove', (e)=>{
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - rect.left; mouse.y = e.clientY - rect.top;
+});
+canvas.addEventListener('mousedown', ()=>{ if(!touchMode) tryAttack(); });
+canvas.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+function toggleFlash(){
+  if(GAME_STATE !== 'playing') return;
+  if(!player.flashOn && player.battery <= 1){ addLog('Батарея фонарика разряжена.'); return; }
+  player.flashOn = !player.flashOn;
+  playClick();
+}
+
+function tryAttack(){
+  if(GAME_STATE !== 'playing') return;
+  if(player.atkCd > 0) return;
+  player.atkCd = CFG.ATTACK_COOLDOWN;
+  player.swingT = 0.22;
+  playSwing();
+
+  if(monster.active && monster.state !== 'flee'){
+    const d = dist(player.x, player.y, monster.x, monster.y);
+    if(d < CFG.ATTACK_RANGE + 18){
+      monster.state = 'flee';
+      monster.fleeT = 6 + dayIndex*1.2;
+      const ang = Math.atan2(monster.y-player.y, monster.x-player.x);
+      monster.x += Math.cos(ang)*150; monster.y += Math.sin(ang)*150;
+      clampWorld(monster, 20);
+      addLog('Удар топором отбросил тварь во тьму!');
+      shake(0.4, 10);
+      playGrowlHit();
+      return;
+    }
+  }
+  for(const a of animals){
+    if(!a.alive) continue;
+    if(dist(player.x,player.y,a.x,a.y) < CFG.ATTACK_RANGE){
+      a.alive = false; a.respawnT = rand(25,45);
+      player.hunger = clamp(player.hunger + CFG.ANIMAL_EAT_HUNGER, 0, 100);
+      addLog('Добыча! Голод восполнен на ' + CFG.ANIMAL_EAT_HUNGER + '.');
+      playEat();
+      return;
+    }
+  }
+}
+
+/* ================= TOUCH CONTROLS ================= */
+const touchUI = document.getElementById('touchUI');
+const btnFlashEl = document.getElementById('btnFlash');
+const btnAtkEl = document.getElementById('btnAtk');
+const STICK_R = 46;
+const touchState = {
+  move:{id:null, ox:0, oy:0, x:0, y:0, active:false, t0:0, moved:0},
+  aim: {id:null, ox:0, oy:0, x:0, y:0, active:false, t0:0, moved:0}
+};
+
+function bindStick(zoneId, stickId, st, onTap){
+  const zone = document.getElementById(zoneId);
+  const stick = document.getElementById(stickId);
+  const knob = stick.querySelector('.knob');
+  function place(){ stick.style.left = st.ox + 'px'; stick.style.top = st.oy + 'px'; }
+  zone.addEventListener('pointerdown', (e)=>{
+    if(st.id !== null) return;
+    e.preventDefault();
+    st.id = e.pointerId; st.ox = e.clientX; st.oy = e.clientY;
+    st.x = 0; st.y = 0; st.active = true; st.t0 = performance.now(); st.moved = 0;
+    try{ zone.setPointerCapture(e.pointerId); }catch(_){}
+    stick.classList.add('active'); place();
+    knob.style.transform = 'translate(0px,0px)';
+  });
+  zone.addEventListener('pointermove', (e)=>{
+    if(e.pointerId !== st.id) return;
+    e.preventDefault();
+    let dx = e.clientX - st.ox, dy = e.clientY - st.oy;
+    const d = Math.hypot(dx, dy);
+    st.moved = Math.max(st.moved, d);
+    if(d > STICK_R){
+      // база "тянется" за пальцем, чтобы джойстик не уезжал из-под пальца
+      st.ox = e.clientX - dx/d*STICK_R; st.oy = e.clientY - dy/d*STICK_R;
+      dx = dx/d*STICK_R; dy = dy/d*STICK_R;
+      place();
+    }
+    st.x = dx/STICK_R; st.y = dy/STICK_R;
+    knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  });
+  function end(e){
+    if(e.pointerId !== st.id) return;
+    const wasTap = (e.type === 'pointerup') && (performance.now() - st.t0 < 250) && st.moved < 14;
+    releaseStick(st, stick, knob);
+    if(wasTap && onTap) onTap();
+  }
+  zone.addEventListener('pointerup', end);
+  zone.addEventListener('pointercancel', end);
+  zone.addEventListener('lostpointercapture', end);
+  return {stick, knob};
+}
+function releaseStick(st, stick, knob){
+  st.id = null; st.active = false; st.x = 0; st.y = 0;
+  stick.classList.remove('active');
+  stick.style.left = ''; stick.style.top = '';
+  knob.style.transform = 'translate(0px,0px)';
+}
+const moveUI = bindStick('zoneMove', 'stickMove', touchState.move, null);
+const aimUI  = bindStick('zoneAim',  'stickAim',  touchState.aim, ()=>{ tryAttack(); });
+
+function bindBtn(el, fn){
+  el.addEventListener('pointerdown', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    el.classList.add('pressed'); fn();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=>{
+    el.addEventListener(ev, ()=> el.classList.remove('pressed'));
+  });
+  el.addEventListener('contextmenu', (e)=> e.preventDefault());
+}
+bindBtn(btnAtkEl, ()=>{ ensureAudio(); tryAttack(); });
+bindBtn(btnFlashEl, ()=>{ ensureAudio(); toggleFlash(); });
+
+function resetTouch(){
+  releaseStick(touchState.move, document.getElementById('stickMove'), moveUI.knob);
+  releaseStick(touchState.aim, document.getElementById('stickAim'), aimUI.knob);
+  btnAtkEl.classList.remove('pressed'); btnFlashEl.classList.remove('pressed');
+}
+function showTouchUI(show){
+  touchUI.classList.toggle('hidden', !show);
+  if(!show) resetTouch();
+}
+function setTouchMode(on){
+  if(touchMode === on) return;
+  touchMode = on;
+  document.body.classList.toggle('touch', on);
+  resize();
+  if(GAME_STATE === 'playing') showTouchUI(on);
+}
+if(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) setTouchMode(true);
+window.addEventListener('pointerdown', (e)=>{
+  if(e.pointerType === 'touch' || e.pointerType === 'pen') setTouchMode(true);
+}, {capture:true, passive:true});
+
+// не даём странице прокручиваться / зумиться пальцами (кроме окон с текстом)
+document.addEventListener('touchmove', (e)=>{
+  if(e.cancelable && !(e.target.closest && e.target.closest('.overlay'))) e.preventDefault();
+}, {passive:false});
+document.addEventListener('gesturestart', (e)=> e.preventDefault());
+document.addEventListener('dblclick', (e)=> e.preventDefault());
+document.addEventListener('contextmenu', (e)=> e.preventDefault());
+
+// сброс ввода при потере фокуса / сворачивании
+function clearInput(){ for(const k in keys) keys[k] = false; resetTouch(); }
+window.addEventListener('blur', clearInput);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) clearInput(); });
+
+function tryFullscreen(){
+  const el = document.documentElement;
+  const rq = el.requestFullscreen || el.webkitRequestFullscreen;
+  try{
+    if(rq && !document.fullscreenElement && !document.webkitFullscreenElement){
+      const p = rq.call(el);
+      if(p && p.catch) p.catch(()=>{});
+    }
+  }catch(e){}
+  try{
+    if(screen.orientation && screen.orientation.lock){
+      screen.orientation.lock('landscape').catch(()=>{});
+    }
+  }catch(e){}
+}
+
+/* ================= SHAKE ================= */
+function shake(dur, mag){ shakeState.t = Math.max(shakeState.t, dur); shakeState.mag = Math.max(shakeState.mag, mag); }
+function updateShake(dt){
+  if(shakeState.t > 0){
+    shakeState.t -= dt;
+    shakeOffset.x = rand(-1,1)*shakeState.mag;
+    shakeOffset.y = rand(-1,1)*shakeState.mag;
+  } else { shakeOffset.x = 0; shakeOffset.y = 0; }
+}
+
+/* ================= UPDATE ================= */
+function updateInput(dt){
+  let mx=0,my=0, speedMul=1;
+  if(keys['KeyW']||keys['ArrowUp']) my -= 1;
+  if(keys['KeyS']||keys['ArrowDown']) my += 1;
+  if(keys['KeyA']||keys['ArrowLeft']) mx -= 1;
+  if(keys['KeyD']||keys['ArrowRight']) mx += 1;
+  if(mx||my){
+    const len = Math.hypot(mx,my);
+    mx/=len; my/=len;
+  }
+  // сенсорный джойстик (аналоговый)
+  const tm = touchState.move;
+  if(tm.active){
+    const mag = Math.hypot(tm.x, tm.y);
+    if(mag > 0.15){
+      mx = tm.x/mag; my = tm.y/mag;
+      speedMul = clamp(mag*1.4, 0.45, 1);
+    }
+  }
+  if(mx||my){
+    player.x += mx*CFG.PLAYER_SPEED*speedMul*dt;
+    player.y += my*CFG.PLAYER_SPEED*speedMul*dt;
+    player.moving = true;
+  } else player.moving = false;
+
+  applyObstacleCollisions(player, CFG.PLAYER_R);
+  clampWorld(player, CFG.PLAYER_R);
+
+  if(touchMode){
+    const ta = touchState.aim;
+    let target = null;
+    if(ta.active && Math.hypot(ta.x, ta.y) > 0.2) target = Math.atan2(ta.y, ta.x);
+    else if(mx||my) target = Math.atan2(my, mx);
+    if(target !== null){
+      player.angle += normAngle(target - player.angle) * Math.min(1, dt*14);
+    }
+  } else {
+    const worldMouseX = mouse.x/zoom + camEff.x, worldMouseY = mouse.y/zoom + camEff.y;
+    player.angle = Math.atan2(worldMouseY - player.y, worldMouseX - player.x);
+  }
+}
+
+function onNightStart(){
+  monster.active = true;
+  const ang = rand(0, Math.PI*2);
+  let sx = player.x + Math.cos(ang)*rand(900,1300);
+  let sy = player.y + Math.sin(ang)*rand(900,1300);
+  monster.x = clamp(sx, 40, CFG.WORLD_W-40);
+  monster.y = clamp(sy, 40, CFG.WORLD_H-40);
+  monster.state = 'wander'; monster.wanderT = 0;
+  monster.speed = CFG.MONSTER_BASE_SPEED + dayIndex*10;
+  monster.detect = CFG.MONSTER_BASE_DETECT + dayIndex*45;
+  addLog('Солнце село. Начинается ночь ' + (dayIndex+1) + '...');
+  playAmbientGrowl();
+}
+function onDayStart(){
+  monster.active = false;
+  nightsSurvived++;
+  addLog('Рассвет. Ты пережил ночь ' + nightsSurvived + '!');
+  lowHealthWarned = false;
+}
+
+function updateTime(dt){
+  elapsed += dt;
+  const cycle = CFG.DAY_DUR + CFG.NIGHT_DUR;
+  const newDayIndex = Math.floor(elapsed / cycle);
+  if(newDayIndex >= CFG.TOTAL_DAYS){ winGame(); return; }
+
+  const t = elapsed - newDayIndex*cycle;
+  const nightStart = CFG.DAY_DUR;
+  const wasNight = isNight;
+  dayIndex = newDayIndex;
+  isNight = t >= nightStart;
+
+  if(t < nightStart - CFG.TRANSITION) nightFactor = 0;
+  else if(t < nightStart) nightFactor = smoothstep(nightStart-CFG.TRANSITION, nightStart, t);
+  else if(t < cycle - CFG.TRANSITION) nightFactor = 1;
+  else nightFactor = 1 - smoothstep(cycle-CFG.TRANSITION, cycle, t);
+
+  if(isNight && !wasNight) onNightStart();
+  if(!isNight && wasNight) onDayStart();
+}
+
+function updateStats(dt){
+  player.hunger = clamp(player.hunger - CFG.HUNGER_DRAIN*dt, 0, 100);
+  if(player.hunger <= 0){
+    player.health = clamp(player.health - CFG.STARVE_DMG*dt, 0, 100);
+  } else if(player.hunger > CFG.REGEN_HUNGER_MIN && (elapsed - player.lastDamage) > CFG.REGEN_SAFE_TIME){
+    player.health = clamp(player.health + CFG.REGEN_RATE*dt, 0, 100);
+  }
+
+  if(player.flashOn){
+    player.battery = clamp(player.battery - CFG.FLASH_DRAIN*dt, 0, 100);
+    if(player.battery <= 0){ player.flashOn = false; addLog('Фонарик разрядился!'); }
+  } else {
+    player.battery = clamp(player.battery + CFG.FLASH_RECHARGE*dt, 0, 100);
+  }
+
+  if(player.atkCd > 0) player.atkCd -= dt;
+  if(player.swingT > 0) player.swingT -= dt;
+
+  if(!lowHealthWarned && player.health < 30){ lowHealthWarned = true; addLog('Здоровье на исходе...'); }
+  if(!lowHungerWarned && player.hunger < 20){ lowHungerWarned = true; addLog('Голод мучает тебя. Нужна еда.'); }
+  if(player.hunger > 50) lowHungerWarned = false;
+
+  if(player.health <= 0) loseGame('health');
+}
+
+function updateAnimals(dt){
+  for(const a of animals){
+    if(!a.alive){
+      a.respawnT -= dt;
+      if(a.respawnT <= 0){
+        a.alive = true;
+        a.x = rand(60, CFG.WORLD_W-60); a.y = rand(60, CFG.WORLD_H-60);
+      }
+      continue;
+    }
+    const dp = dist(a.x,a.y,player.x,player.y);
+    if(dp < 160){
+      const ang = Math.atan2(a.y-player.y, a.x-player.x);
+      a.x += Math.cos(ang)*72*dt; a.y += Math.sin(ang)*72*dt;
+    } else {
+      a.wanderT -= dt;
+      if(a.wanderT <= 0){ a.wanderT = rand(1.5,3.5); a.dir = rand(0,Math.PI*2); }
+      a.x += Math.cos(a.dir)*30*dt; a.y += Math.sin(a.dir)*30*dt;
+    }
+    applyObstacleCollisions(a, 10);
+    clampWorld(a, 10);
+  }
+}
+
+function updateMonster(dt){
+  if(!monster.active) return;
+  const d = dist(monster.x, monster.y, player.x, player.y);
+
+  if(monster.state === 'flee'){
+    monster.fleeT -= dt;
+    const ang = Math.atan2(monster.y-player.y, monster.x-player.x);
+    monster.x += Math.cos(ang)*monster.speed*1.15*dt;
+    monster.y += Math.sin(ang)*monster.speed*1.15*dt;
+    if(monster.fleeT <= 0) monster.state = 'wander';
+  } else {
+    const detectR = monster.detect + (player.flashOn ? CFG.MONSTER_FLASH_BONUS : 0);
+    if(d < detectR){
+      if(monster.state !== 'chase') addLog('Ты слышишь треск веток совсем рядом...');
+      monster.state = 'chase';
+    } else if(d > detectR*1.6){
+      monster.state = 'wander';
+    }
+    if(monster.state === 'chase'){
+      const ang = Math.atan2(player.y-monster.y, player.x-monster.x);
+      monster.x += Math.cos(ang)*monster.speed*dt;
+      monster.y += Math.sin(ang)*monster.speed*dt;
+    } else {
+      monster.wanderT -= dt;
+      if(monster.wanderT <= 0){ monster.wanderT = rand(2,4); monster.dir = rand(0,Math.PI*2); }
+      monster.x += Math.cos(monster.dir)*70*dt;
+      monster.y += Math.sin(monster.dir)*70*dt;
+    }
+  }
+  applyObstacleCollisions(monster, 18);
+  clampWorld(monster, 18);
+
+  if(monster.state === 'chase' && d < CFG.MONSTER_TOUCH){
+    player.health = clamp(player.health - CFG.MONSTER_DMG*dt, 0, 100);
+    player.lastDamage = elapsed;
+    shake(0.15, 6);
+    if(Math.random() < 0.015) playScream();
+    if(player.health <= 0) loseGame('monster');
+  }
+}
+
+function updateCamera(){
+  camera.x = clamp(player.x - VW/2, 0, Math.max(0, CFG.WORLD_W - VW));
+  camera.y = clamp(player.y - VH/2, 0, Math.max(0, CFG.WORLD_H - VH));
+  camEff.x = camera.x + shakeOffset.x;
+  camEff.y = camera.y + shakeOffset.y;
+}
+
+/* ================= RENDER ================= */
+let groundPattern = null;
+function createGroundPattern(){
+  const tc = document.createElement('canvas'); tc.width = 256; tc.height = 256;
+  const tctx = tc.getContext('2d');
+  tctx.fillStyle = '#3a4a2e'; tctx.fillRect(0,0,256,256);
+  for(let i=0;i<420;i++){
+    const x = rand(0,256), y = rand(0,256);
+    const shade = rand(-16,16);
+    const g = clamp(74+shade,40,110);
+    tctx.fillStyle = 'rgba('+(g-40)+','+g+','+(g-45)+',0.45)';
+    tctx.beginPath(); tctx.arc(x,y,rand(1,3),0,Math.PI*2); tctx.fill();
+  }
+  for(let i=0;i<40;i++){
+    const x = rand(0,256), y = rand(0,256);
+    tctx.fillStyle = 'rgba(60,45,25,0.3)';
+    tctx.beginPath(); tctx.ellipse(x,y,rand(4,9),rand(3,6),0,0,Math.PI*2); tctx.fill();
+  }
+  return ctx.createPattern(tc, 'repeat');
+}
+
+function drawGround(){
+  ctx.fillStyle = groundPattern;
+  ctx.fillRect(camEff.x-4, camEff.y-4, VW+8, VH+8);
+}
+
+function drawHeli(){
+  const x = heliPos.x, y = heliPos.y;
+  ctx.save();
+  ctx.fillStyle = 'rgba(20,20,20,0.35)';
+  ctx.beginPath(); ctx.ellipse(x, y+10, 100, 55, 0, 0, Math.PI*2); ctx.fill();
+
+  ctx.translate(x, y);
+  ctx.rotate(0.25);
+  ctx.fillStyle = '#4a4d4f';
+  ctx.beginPath(); ctx.ellipse(0,0, 70, 30, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#3a3d3f';
+  ctx.fillRect(40, -8, 90, 14);
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(120,-2); ctx.lineTo(175,-46); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-14,-6, 22, 14, 0, 0, Math.PI*2);
+  ctx.fillStyle = '#5a5d60'; ctx.fill();
+
+  const blink = (Math.sin(elapsed*4) > 0);
+  if(blink){
+    ctx.fillStyle = '#d43a3a';
+    ctx.beginPath(); ctx.arc(60,-10, 4, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTree(t){
+  ctx.save();
+  ctx.fillStyle = '#4a3421';
+  ctx.fillRect(t.x-5, t.y-10, 10, 20);
+  const g1 = 60 + t.tone*20;
+  ctx.fillStyle = `rgb(${20+t.tone*10},${g1},${20+t.tone*8})`;
+  ctx.beginPath(); ctx.arc(t.x, t.y-18, t.canR, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(t.x-t.canR*0.4, t.y-8, t.canR*0.7, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(t.x+t.canR*0.45, t.y-6, t.canR*0.65, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawAnimal(a){
+  ctx.save();
+  ctx.fillStyle = '#8a6a45';
+  ctx.beginPath(); ctx.ellipse(a.x, a.y, 11, 7, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(a.x-9, a.y-4, 4, 3, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#6a4c30';
+  ctx.beginPath(); ctx.ellipse(a.x-11, a.y-11, 2.5, 5, -0.3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(a.x-6, a.y-12, 2.5, 5, 0.3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawMonster(){
+  ctx.save();
+  const bob = Math.sin(elapsed*8)*2;
+  ctx.translate(monster.x, monster.y + bob);
+  const ang = Math.atan2(player.y - monster.y, player.x - monster.x);
+
+  ctx.fillStyle = 'rgba(180,20,20,0.25)';
+  ctx.shadowColor = '#900'; ctx.shadowBlur = 18;
+  ctx.beginPath(); ctx.ellipse(0,10,26,12,0,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#0d0906';
+  ctx.beginPath();
+  ctx.ellipse(0, -10, 15, 30, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#0d0906'; ctx.lineWidth = 6; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-12,-20); ctx.lineTo(-26,0+Math.sin(elapsed*10)*6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12,-20); ctx.lineTo(26,0-Math.sin(elapsed*10)*6); ctx.stroke();
+
+  ctx.beginPath(); ctx.arc(0,-38,13,0,Math.PI*2); ctx.fill();
+
+  const ex = Math.cos(ang)*6, ey = -38+Math.sin(ang)*3;
+  ctx.shadowColor = '#ff2a2a'; ctx.shadowBlur = 12;
+  ctx.fillStyle = '#ff3a3a';
+  ctx.beginPath(); ctx.arc(ex-4, ey, 2.4, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(ex+4, ey, 2.4, 0, Math.PI*2); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+function drawPlayer(){
+  ctx.save();
+  ctx.translate(player.x, player.y);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath(); ctx.ellipse(0,10,14,6,0,0,Math.PI*2); ctx.fill();
+
+  ctx.rotate(player.angle);
+  ctx.fillStyle = '#3a4a5a';
+  ctx.beginPath(); ctx.arc(0,0,CFG.PLAYER_R,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#d8c8a8';
+  ctx.beginPath(); ctx.arc(6,0,7,0,Math.PI*2); ctx.fill();
+
+  if(player.swingT > 0){
+    ctx.strokeStyle = '#c9c9c9'; ctx.lineWidth = 4; ctx.lineCap='round';
+    const sw = (0.22 - player.swingT) / 0.22;
+    const a0 = -0.9 + sw*1.8;
+    ctx.beginPath();
+    ctx.moveTo(8,4);
+    ctx.lineTo(8+Math.cos(a0)*30, 4+Math.sin(a0)*30);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#7a6a4a'; ctx.lineWidth = 4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(4,10); ctx.lineTo(20,20); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawFog(){
+  const fs = dpr*zoom*FOG_RES;
+  fogCtx.setTransform(1,0,0,1,0,0);
+  fogCtx.globalCompositeOperation = 'source-over';
+  fogCtx.clearRect(0,0,fogCanvas.width, fogCanvas.height);
+  fogCtx.setTransform(fs,0,0,fs,0,0);
+  const nightAlpha = 0.08 + nightFactor*0.82;
+  fogCtx.fillStyle = 'rgba(4,4,8,' + nightAlpha + ')';
+  fogCtx.fillRect(0,0,VW+2,VH+2);
+
+  const px = player.x - camEff.x, py = player.y - camEff.y;
+
+  fogCtx.globalCompositeOperation = 'destination-out';
+
+  const ambR = CFG.AMBIENT_R;
+  const g1 = fogCtx.createRadialGradient(px,py,0, px,py, ambR);
+  g1.addColorStop(0, 'rgba(0,0,0,0.9)');
+  g1.addColorStop(1, 'rgba(0,0,0,0)');
+  fogCtx.fillStyle = g1;
+  fogCtx.beginPath(); fogCtx.arc(px,py,ambR,0,Math.PI*2); fogCtx.fill();
+
+  if(player.flashOn && player.battery > 0){
+    const range = CFG.FLASH_RANGE * (0.55 + 0.45*(player.battery/100));
+    const half = CFG.FLASH_HALF_ANGLE;
+    const ang = player.angle;
+    const g2 = fogCtx.createRadialGradient(px,py,0, px,py, range);
+    g2.addColorStop(0, 'rgba(0,0,0,0.95)');
+    g2.addColorStop(0.7, 'rgba(0,0,0,0.6)');
+    g2.addColorStop(1, 'rgba(0,0,0,0)');
+    fogCtx.fillStyle = g2;
+    fogCtx.beginPath();
+    fogCtx.moveTo(px,py);
+    fogCtx.arc(px,py,range, ang-half, ang+half);
+    fogCtx.closePath();
+    fogCtx.fill();
+  }
+
+  fogCtx.globalCompositeOperation = 'source-over';
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(fogCanvas, 0, 0, canvas.width, canvas.height);
+}
+
+function render(){
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const s = dpr*zoom;
+  ctx.setTransform(s,0,0,s,0,0);
+  ctx.save();
+  ctx.translate(-camEff.x, -camEff.y);
+
+  drawGround();
+
+  const list = [];
+  const M = 120; // запас за краем экрана, чтобы не рисовать невидимое
+  const vx0 = camEff.x - M, vx1 = camEff.x + VW + M, vy0 = camEff.y - M, vy1 = camEff.y + VH + M;
+  list.push({y: heliPos.y, draw: drawHeli});
+  for(const t of trees){
+    if(t.x < vx0 || t.x > vx1 || t.y < vy0 || t.y > vy1 + 40) continue;
+    list.push({y: t.y + t.canR, draw: ()=>drawTree(t)});
+  }
+  for(const a of animals) if(a.alive){
+    if(a.x < vx0 || a.x > vx1 || a.y < vy0 || a.y > vy1) continue;
+    list.push({y: a.y, draw: ()=>drawAnimal(a)});
+  }
+  if(monster.active) list.push({y: monster.y, draw: drawMonster});
+  list.push({y: player.y, draw: drawPlayer});
+  list.sort((p,q)=>p.y-q.y);
+  for(const it of list) it.draw();
+
+  ctx.restore();
+  drawFog();
+}
+
+/* ================= HUD ================= */
+const healthBar = document.getElementById('healthBar');
+const hungerBar = document.getElementById('hungerBar');
+const batteryBar = document.getElementById('batteryBar');
+const healthNum = document.getElementById('healthNum');
+const hungerNum = document.getElementById('hungerNum');
+const batteryNum = document.getElementById('batteryNum');
+const dayText = document.getElementById('dayText');
+const phaseBarFill = document.getElementById('phaseBarFill');
+
+function updateHUD(){
+  healthBar.style.width = player.health + '%';
+  hungerBar.style.width = player.hunger + '%';
+  batteryBar.style.width = player.battery + '%';
+  healthNum.textContent = Math.round(player.health);
+  hungerNum.textContent = Math.round(player.hunger);
+  batteryNum.textContent = Math.round(player.battery);
+
+  dayText.textContent = (isNight ? 'Ночь ' : 'День ') + (dayIndex+1) + ' из ' + CFG.TOTAL_DAYS;
+
+  const cycle = CFG.DAY_DUR + CFG.NIGHT_DUR;
+  const t = elapsed - dayIndex*cycle;
+  let frac;
+  if(isNight){ frac = (t - CFG.DAY_DUR) / CFG.NIGHT_DUR; }
+  else { frac = t / CFG.DAY_DUR; }
+  phaseBarFill.style.width = clamp(frac,0,1)*100 + '%';
+
+  document.body.classList.toggle('critical', player.health < 30);
+  btnFlashEl.classList.toggle('on', player.flashOn);
+}
+
+/* ================= GAME FLOW ================= */
+function winGame(){
+  GAME_STATE = 'victory';
+  document.getElementById('endTitle').textContent = 'ВЫ ВЫЖИЛИ';
+  document.getElementById('endTitle').style.color = '#a8d888';
+  document.getElementById('endText').textContent = 'Три ночи позади. Взошло солнце четвёртого дня, и тварь больше не вернётся. Спасатели уже близко.';
+  document.getElementById('endOverlay').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  showTouchUI(false);
+}
+function loseGame(reason){
+  if(GAME_STATE !== 'playing') return;
+  GAME_STATE = 'gameover';
+  deathReason = reason;
+  document.getElementById('endTitle').textContent = 'ВЫ ПОГИБЛИ';
+  document.getElementById('endTitle').style.color = '';
+  document.getElementById('endText').textContent = reason === 'monster'
+    ? 'Тварь настигла тебя во тьме леса, на ночи ' + (dayIndex+1) + '.'
+    : 'Голод и раны взяли своё. Ты не продержался до утра.';
+  document.getElementById('endOverlay').classList.remove('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  showTouchUI(false);
+}
+
+function resetState(){
+  elapsed = 0; dayIndex = 0; isNight = false; nightFactor = 0; nightsSurvived = 0;
+  lowHealthWarned = false; lowHungerWarned = false;
+  player.x = heliPos.x + 90; player.y = heliPos.y + 90;
+  player.health = 100; player.hunger = 100; player.battery = 100;
+  player.flashOn = false; player.angle = 0; player.atkCd = 0; player.swingT = 0;
+  player.lastDamage = -999;
+  monster.active = false; monster.state = 'wander';
+  generateTrees();
+  generateAnimals();
+  logbox.innerHTML = '';
+  shakeState.t = 0; shakeOffset.x = 0; shakeOffset.y = 0;
+  addLog('Вертолёт разбился. Нужно продержаться 3 дня и 3 ночи.');
+}
+
+function startGame(){
+  ensureAudio();
+  resetState();
+  GAME_STATE = 'playing';
+  document.getElementById('startOverlay').classList.add('hidden');
+  document.getElementById('endOverlay').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  if(touchMode){ showTouchUI(true); tryFullscreen(); } else showTouchUI(false);
+}
+
+document.getElementById('btnStart').addEventListener('click', startGame);
+document.getElementById('btnRestart').addEventListener('click', startGame);
+
+/* ================= MAIN LOOP ================= */
+groundPattern = createGroundPattern();
+let lastTime = performance.now();
+function loop(now){
+  let dt = (now - lastTime) / 1000;
+  lastTime = now;
+  dt = Math.min(dt, 0.05);
+  requestAnimationFrame(loop);
+
+  if(GAME_STATE === 'playing'){
+    updateInput(dt);
+    updateTime(dt);
+    if(GAME_STATE !== 'playing') return;
+    updateStats(dt);
+    updateAnimals(dt);
+    updateMonster(dt);
+    updateShake(dt);
+    updateCamera(dt);
+    updateHeartbeat(dt);
+    render();
+    updateHUD();
+  }
+}
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
